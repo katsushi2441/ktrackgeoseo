@@ -203,9 +203,10 @@ function ktgs_share_text(array $r): string
 {
     [$s, $a, $g] = ktgs_scores($r);
     $f = fn($v) => $v === null ? '-' : (string)$v;
-    $host = ktgs_host($r);
+    // ドメイン名の「.」は全角にする。半角のままだと X が自動でリンクにし、そのサイトのOGPが出てしまう
+    $host = str_replace('.', '．', ktgs_host($r));
     $head = ktgs_all_good($r) ? $host . ' は、SEO・AEO・GEO の3つとも80点以上でした' : $host . ' を、SEO・AEO・GEO で診断しました';
-    return $head . "\nSEO " . $f($s) . ' ／ AEO ' . $f($a) . ' ／ GEO ' . $f($g) . "\n#SEO #AEO #GEO";
+    return '【' . KTGS_TITLE . "】\n" . $head . "\nSEO " . $f($s) . ' ／ AEO ' . $f($a) . ' ／ GEO ' . $f($g) . "\n#SEO #AEO #GEO";
 }
 /** 結果カード（1200×630のPNG）。文字は ktgs_assets/ の切り出しフォント（scripts/make_card_fonts.py）。 */
 function ktgs_card_png(array $r): string
