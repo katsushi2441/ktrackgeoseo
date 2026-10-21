@@ -1,0 +1,17 @@
+<?php
+/**
+ * Kurage Track & GEO & SEO の設定。ktrackgeoseo_config.php という名前にコピーして編集してください。
+ * SEO診断の細かい設定は kseo_config.php、計測の設定は ktrackgeo_config.php です。
+ */
+define('KTGS_TITLE', 'SEO・AEO・GEO診断');
+// 画面のパスワード（password_hash の値）。空なら鍵なし。社外から見える場所なら必ず設定してください
+define('KTGS_PASSWORD_HASH', '');
+// SEO診断で巡るページ数（多いほど遅い）
+define('KTGS_SEO_PAGES', 5);
+// 同じURLの結果を使い回す時間
+define('KTGS_CACHE_HOURS', 24);
+// 1つのIPから1時間に新しく診断できる回数（0で無制限）
+define('KTGS_RATE_PER_HOUR', 20);
+// 公開URLとOGP画像（任意）
+define('KTGS_CANONICAL', '');
+define('KTGS_OG_IMAGE', '');

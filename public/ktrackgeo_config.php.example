@@ -1,0 +1,33 @@
+<?php
+/**
+ * Kurage Track & GEO の設定。
+ *
+ * このファイルを ktrackgeo_config.php という名前にコピーして編集してください。
+ * （.example のままだと読み込まれません）
+ */
+
+// 画面のタイトル
+define('KTG_TITLE', 'アクセス解析');
+
+// 管理画面のパスワード。空にすると鍵なしで開けます。
+// ハッシュは scripts/make_password_hash.php で作れます。
+define('KTG_PASSWORD_HASH', '');
+
+// 自サイトのホスト名（カンマ区切り）。
+// 「サイト内の移動」と「外から見つけてもらった流入」を分けるのに使います。
+// 混ぜると外部からの流入が埋もれます。
+define('KTG_OWN_HOSTS', 'example.co.jp');
+
+// GEO診断の対象URL（カンマ区切り）。空なら上のホストのトップを見ます。
+define('KTG_GEO_TARGETS', 'https://example.co.jp/');
+
+// ログを何か月分残すか。過ぎたものは自動で消えます。
+define('KTG_KEEP_MONTHS', 24);
+
+// 集計結果を持ち回る秒数。0で無効。
+// 鍵を掛けない運用では、開かれるたびにログを全走査しないために効きます。
+define('KTG_CACHE_SECONDS', 300);
+
+// サーバー間で計測を呼ぶときの合鍵（転送ページからIP・UAを代理で渡す用途）。
+// 使わないなら空のままで構いません。
+define('KTG_INTERNAL_KEY', '');

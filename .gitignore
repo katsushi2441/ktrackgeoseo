@@ -1,0 +1,8 @@
+outputs/
+public/kseo_data/*
+!public/kseo_data/.htaccess
+public/ktg_data/*
+!public/ktg_data/.htaccess
+public/ktgs_data/*
+!public/ktgs_data/.htaccess
+public/*_config.php
