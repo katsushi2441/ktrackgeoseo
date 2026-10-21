@@ -429,6 +429,13 @@ h2{font-size:21px;margin:30px 0 8px}
 .share .bt{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .share .xb{background:#111;border-color:#111;color:#fff}
 .share .ok{font-size:13px;color:var(--teal-d);font-weight:800}
+
+.running{display:none;align-items:center;gap:12px;background:#fff;border:2px solid var(--teal);border-radius:14px;padding:14px 16px;margin:14px 0;font-weight:800;color:var(--teal-d)}
+.running.on{display:flex}
+.running .spin{width:26px;height:26px;border:4px solid #cfe9e6;border-top-color:var(--teal);border-radius:50%;animation:ktgs-spin .9s linear infinite;flex:none}
+.running small{display:block;font-weight:700;color:var(--muted);font-size:13px}
+@keyframes ktgs-spin{to{transform:rotate(360deg)}}
+button[disabled]{opacity:.55;cursor:wait}
 footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted);background:#fff}
 @media(max-width:640px){.scores{grid-template-columns:1fr}}
 @media print{header nav,form.q,.actions,.demo{display:none}body{background:#fff}.sc,.list,.cat,.box{break-inside:avoid}}
@@ -449,10 +456,11 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
 <?php else: ?>
   <h1><?= $share ? ktgs_h(ktgs_host($result)) . ' のSEO・AEO・GEO診断結果' : 'URLひとつで、SEO・AEO・GEOをまとめて診断' ?></h1>
   <p class="lead">Google検索に出るための<b>SEO</b>、AIの回答に答えとして引用されるための<b>AEO</b>、ChatGPT・Perplexity・Google AI OverviewsなどのAI検索に読まれ紹介されるための<b>GEO</b>を、続けて診断します。判定に生成AIは使わないので、同じページなら何度測っても同じ結果になります。</p>
-  <form class="q" method="get" action="<?= ktgs_h($self) ?>">
+  <form class="q js-run" method="get" action="<?= ktgs_h($self) ?>">
     <input type="text" name="url" inputmode="url" placeholder="https://example.co.jp/" value="<?= ktgs_h($url_in) ?>" required>
     <button type="submit">診断する</button>
   </form>
+  <div class="running" id="running" role="status" aria-live="polite"><span class="spin"></span><span>診断しています。そのままお待ちください<small id="running-sub">SEO・AEO・GEOを順に調べています。1分ほどかかることがあります（<span id="running-sec">0</span>秒）</small></span></div>
   <p class="note">SEOはトップから最大<?= (int)KTGS_SEO_PAGES ?>ページを巡ります。1分ほどかかることがあります。同じURLの結果は<?= (int)KTGS_CACHE_HOURS ?>時間使い回します。</p>
   <?php if ($error !== ''): ?><div class="err"><?= ktgs_h($error) ?></div><?php endif; ?>
 
@@ -547,7 +555,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
     <div class="actions">
       <a class="btn main" href="<?= ktgs_h($self) ?>?url=<?= rawurlencode($result['url']) ?>&amp;format=md">診断書（Markdown）をダウンロード</a>
       <button class="btn" type="button" onclick="window.print()">印刷・PDFで保存</button>
-      <form method="post" action="<?= ktgs_h($self) ?>?url=<?= rawurlencode($result['url']) ?>" style="display:inline"><input type="hidden" name="again" value="1"><button class="btn" type="submit">いま測り直す</button></form>
+      <form class="js-run" method="post" action="<?= ktgs_h($self) ?>?url=<?= rawurlencode($result['url']) ?>" style="display:inline"><input type="hidden" name="again" value="1"><button class="btn" type="submit">いま測り直す</button></form>
     </div>
     <p class="note">判定はすべて実測値にもとづく決定論的なチェックで、生成AIは使っていません。</p>
   <?php endif; ?>
@@ -555,5 +563,31 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
 <?= KTGS_DEMO_FOOTER ?>
 </main>
 <footer><div class="wrap"><?= ktgs_h(KTGS_TITLE) ?>（Kurage SEO と Kurage Track &amp; GEO を1つにしたもの・MIT License）</div></footer>
+<script>
+// 診断中はボタンを押せなくし、待っていることが分かるようにする（診断は1分ほどかかる）
+document.querySelectorAll('form.js-run').forEach(function (f) {
+  f.addEventListener('submit', function () {
+    f.querySelectorAll('button').forEach(function (b) { b.disabled = true; b.textContent = '診断中…'; });
+    document.querySelectorAll('form.js-run button').forEach(function (b) { b.disabled = true; });
+    var box = document.getElementById('running');
+    if (box) {
+      box.classList.add('on');
+      box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      var t = 0, sec = document.getElementById('running-sec'), sub = document.getElementById('running-sub');
+      setInterval(function () {
+        t++; if (sec) sec.textContent = t;
+        if (t === 45 && sub) sub.firstChild.textContent = 'ページの多いサイトは時間がかかります。もう少しお待ちください（';
+      }, 1000);
+    }
+  });
+});
+// 戻るボタンで戻ったときに押せないままにならないようにする
+window.addEventListener('pageshow', function (e) {
+  if (e.persisted) {
+    document.querySelectorAll('form.js-run button').forEach(function (b) { b.disabled = false; });
+    var box = document.getElementById('running'); if (box) box.classList.remove('on');
+  }
+});
+</script>
 </body>
 </html>
