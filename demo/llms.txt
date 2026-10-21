@@ -1,6 +1,6 @@
 # Kurage Track & GEO & SEO
 
-URLを1回入れるだけで、Google検索向けのSEO（10カテゴリ）と、AI検索向けのAEO・GEO（8観点）をまとめて診断し、直すことを効果の大きい順に出すシステム。判定に生成AIは使わない（同じページなら同じ結果）。GPTBot・ClaudeBot・PerplexityBot などAIのクローラーの訪問の計測も同じシステムで行う。
+URLを1回入れるだけで、Google検索向けのSEO（10カテゴリ）、AIの回答に引用されるためのAEO（7観点）、AI検索に読まれるためのGEO（8観点）をまとめて診断し、直すことを効果の大きい順に出すシステム。判定に生成AIは使わない（同じページなら同じ結果）。GPTBot・ClaudeBot・PerplexityBot などAIのクローラーの訪問の計測も同じシステムで行う。
 
 - 診断: https://proto.exbridge.jp/ktrackgeoseo/ktrackgeoseo.php?url=<URL>
 - 計測のダッシュボード: https://proto.exbridge.jp/ktrackgeoseo/ktrackgeo.php?dashboard=1

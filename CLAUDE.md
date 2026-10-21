@@ -16,9 +16,10 @@
 ## 骨格
 
 ```
-入口  ktrackgeoseo.php         URLを1回入れて、下の2つの診断を続けてかけ、1枚にまとめる
+入口  ktrackgeoseo.php         URLを1回入れて、下の3つの診断を続けてかけ、1枚にまとめる
 SEO   kseo.php                 Google検索向け（10カテゴリ・生成AIを使わない）
-GEO   ktrackgeo_geo.php        AI検索向けのAEO・GEO（8観点・生成AIを使わない）
+AEO   ktrackgeoseo_aeo.php     AIの回答に引用されやすいか（7観点・生成AIを使わない。Kurage GEO の判定を移植）
+GEO   ktrackgeo_geo.php        AI検索に読まれるか（8観点・生成AIを使わない）
 実測  ktrackgeo.php            実際に誰が来たか（人／AI／検索エンジン）
 画面  ktrackgeo_dashboard.php  計測を見る
 ```
@@ -26,7 +27,7 @@ GEO   ktrackgeo_geo.php        AI検索向けのAEO・GEO（8観点・生成AI�
 ## 勝手に変えてはいけないこと
 
 - **診断に生成AIを使わない。**結果が実行ごとにぶれ、「直したのに点が下がった」が起きます
-- **kseo.php と ktrackgeo_geo.php の判定の中身を、入口側の都合で変えない。**入口はまとめ役です
+- **kseo.php・ktrackgeoseo_aeo.php・ktrackgeo_geo.php の判定の中身を、入口側の都合で変えない。**入口はまとめ役です。AEO を直したら `scripts/check_aeo_parity.py` で Kurage GEO と同じ点が出るか確かめる
 - **データの置き場（kseo_data/・ktg_data/・ktgs_data/）の `.htaccess` を消さない**
 - **計測でボットを捨てない。**捨てるとAIに読まれているかが永久に分かりません
 - **IPを平文で保存しない**

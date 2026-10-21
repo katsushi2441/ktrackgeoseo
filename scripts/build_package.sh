@@ -6,7 +6,7 @@ NAME="ktrackgeoseo-$(date +%Y%m%d)"
 OUT="outputs/$NAME"
 rm -rf "$OUT" "outputs/${NAME}.zip"
 mkdir -p "$OUT/public/kseo_data" "$OUT/public/ktg_data" "$OUT/public/ktgs_data" "$OUT/scripts" "$OUT/skills"
-for f in ktrackgeoseo.php kseo.php ktrackgeo.php ktrackgeo_dashboard.php ktrackgeo_geo.php \
+for f in ktrackgeoseo.php ktrackgeoseo_aeo.php kseo.php ktrackgeo.php ktrackgeo_dashboard.php ktrackgeo_geo.php \
          ktrackgeoseo_config.php.example kseo_config.php.example ktrackgeo_config.php.example; do
   cp "public/$f" "$OUT/public/$f"
 done

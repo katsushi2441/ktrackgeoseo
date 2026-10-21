@@ -41,7 +41,8 @@ h1 em{{font-style:normal;color:#076f67}}
   <h1>URLひとつで、<br><em>SEO・AEO・GEO</em>をまとめて診断</h1>
   <div class="chips">
     <div class="c1"><b>SEO</b><span>Google検索</span></div>
-    <div class="c2"><b>AEO・GEO</b><span>AI検索・AIの回答</span></div>
+    <div class="c2"><b>AEO</b><span>AIの回答</span></div>
+    <div class="c2"><b>GEO</b><span>AI検索</span></div>
     <div class="c3"><b>AIクローラー計測</b><span>GPTBot・ClaudeBot…</span></div>
   </div>
   <div class="sub">生成AIを使わない決まったチェック／PHPだけで動く</div>

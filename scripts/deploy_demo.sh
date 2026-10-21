@@ -13,7 +13,7 @@ root = '/web/proto_exbridge_jp/ktrackgeoseo'
 for d in (root, root + '/kseo_data', root + '/ktg_data', root + '/ktgs_data'):
     try: f.mkd(d)
     except ftplib.error_perm: pass
-files = {f'public/{n}': n for n in ('ktrackgeoseo.php', 'kseo.php', 'ktrackgeo.php', 'ktrackgeo_dashboard.php', 'ktrackgeo_geo.php')}
+files = {f'public/{n}': n for n in ('ktrackgeoseo.php', 'ktrackgeoseo_aeo.php', 'kseo.php', 'ktrackgeo.php', 'ktrackgeo_dashboard.php', 'ktrackgeo_geo.php')}
 files.update({'demo/ktrackgeoseo_config.php': 'ktrackgeoseo_config.php', 'demo/kseo_config.php': 'kseo_config.php',
               'demo/ktrackgeo_config.php': 'ktrackgeo_config.php', 'demo/index.php': 'index.php', 'demo/.htaccess': '.htaccess',
               'demo/ktrackgeoseo-ogp.png': 'ktrackgeoseo-ogp.png', 'demo/llms.txt': 'llms.txt',

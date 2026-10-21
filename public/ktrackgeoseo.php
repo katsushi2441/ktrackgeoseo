@@ -3,9 +3,10 @@ declare(strict_types=1);
 /**
  * Kurage Track & GEO & SEO（ktrackgeoseo）— 入口の画面。
  *
- * URLを1回入れると、次の2つの診断を続けてかけ、1枚の結果にまとめる。
- *   - SEO（Google検索）  … kseo.php の診断（10カテゴリ・決定論）
- *   - AEO・GEO（AI検索） … ktrackgeo_geo.php の診断（8観点・決定論）
+ * URLを1回入れると、次の3つの診断を続けてかけ、1枚の結果にまとめる。
+ *   - SEO（Google検索）      … kseo.php の診断（10カテゴリ・決定論）
+ *   - AEO（AIの回答への引用）… ktrackgeoseo_aeo.php（Kurage GEO の japanese_aeo.py を移したもの・7観点・決定論）
+ *   - GEO（AI検索に読まれるか）… ktrackgeo_geo.php の診断（8観点・決定論）
  * 実際にAIのクローラーや人が来たかの実測は、ktrackgeo.php（計測）とダッシュボードで見る。
  *
  * 2つの製品（Kurage SEO と Kurage Track & GEO）の診断の中身には手を入れていない。
@@ -31,6 +32,7 @@ if (!defined('KTGS_OG_IMAGE'))      { define('KTGS_OG_IMAGE', ''); }        // O
 define('KSEO_AS_LIBRARY', true);
 require_once __DIR__ . '/kseo.php';
 require_once __DIR__ . '/ktrackgeo_geo.php';
+require_once __DIR__ . '/ktrackgeoseo_aeo.php';   // AEO（Kurage GEO の判定を移したもの）
 // この画面の訪問も計測に入れる（ktrackgeo.php は require されると1件記録して戻る）
 if (is_file(__DIR__ . '/ktrackgeo.php')) {
     require_once __DIR__ . '/ktrackgeo.php';
@@ -97,7 +99,13 @@ function ktgs_run(string $url): array
 {
     $seo = kseo_run_audit($url, (int)KTGS_SEO_PAGES);
     $geo = ktg_geo_audit($url);
-    return ['url' => $url, 'checked_at' => time(), 'seo' => $seo, 'geo' => $geo];
+    [$html, , $err] = ktg_geo_fetch($url);
+    if (!class_exists('DOMDocument')) {
+        $aeo = ['error' => 'このサーバーのPHPに dom 拡張が無いため、AEOは診断できませんでした'];
+    } else {
+        $aeo = ($err !== '' || $html === '') ? ['error' => '対象ページを取得できませんでした'] : ktgs_aeo_analyze($html);
+    }
+    return ['url' => $url, 'checked_at' => time(), 'seo' => $seo, 'aeo' => $aeo, 'geo' => $geo];
 }
 
 function ktgs_band_label(int $score): string
@@ -117,7 +125,8 @@ function ktgs_markdown(array $r): string
     $out[] = '- 対象: ' . $r['url'];
     $out[] = '- 診断日時: ' . date('Y-m-d H:i', (int)$r['checked_at']) . '（日本時間）';
     if (empty($r['seo']['error'])) { $out[] = '- SEO（Google検索）: ' . $r['seo']['score']['overall'] . ' / 100'; }
-    if (empty($r['geo']['error'])) { $out[] = '- AEO・GEO（AI検索）: ' . $r['geo']['score'] . ' / 100'; }
+    if (empty($r['aeo']['error'])) { $out[] = '- AEO（AIの回答への引用）: ' . $r['aeo']['score'] . ' / 100'; }
+    if (empty($r['geo']['error'])) { $out[] = '- GEO（AI検索に読まれるか）: ' . $r['geo']['score'] . ' / 100'; }
     $out[] = '';
     if (empty($r['seo']['error'])) {
         $md = kseo_report_markdown($r['seo']);
@@ -127,7 +136,20 @@ function ktgs_markdown(array $r): string
         $out[] = '診断できませんでした: ' . $r['seo']['error'];
     }
     $out[] = '';
-    $out[] = '## AEO・GEO（AI検索）';
+    $out[] = '## AEO（AIの回答への引用されやすさ）';
+    if (!empty($r['aeo']) && empty($r['aeo']['error'])) {
+        $out[] = '';
+        $out[] = '| 観点 | 点 |';
+        $out[] = '|---|---|';
+        foreach (ktgs_aeo_metric_labels() as $k => $label) { $out[] = '| ' . $label . ' | ' . $r['aeo']['metrics'][$k]['score'] . ' |'; }
+        $out[] = '';
+        $out[] = '### 直すこと';
+        foreach ($r['aeo']['recommendations'] as $i => $a) { $out[] = ($i + 1) . '. ' . $a; }
+    } else {
+        $out[] = '診断できませんでした' . (!empty($r['aeo']['error']) ? ': ' . $r['aeo']['error'] : '');
+    }
+    $out[] = '';
+    $out[] = '## GEO（AI検索に読まれるか）';
     if (empty($r['geo']['error'])) {
         $out[] = '';
         $out[] = '| 観点 | 点 |';
@@ -160,7 +182,7 @@ if ($authed && $url_in !== '') {
     } else {
         $key = ktgs_key($checked);
         $cached = ktgs_load($key);
-        $fresh = $cached && (time() - (int)$cached['checked_at']) < KTGS_CACHE_HOURS * 3600;
+        $fresh = $cached && isset($cached['aeo']) && (time() - (int)$cached['checked_at']) < KTGS_CACHE_HOURS * 3600;
         if ($fresh && empty($_POST['again'])) {
             $result = $cached;
         } elseif (!ktgs_rate_ok()) {
@@ -168,7 +190,7 @@ if ($authed && $url_in !== '') {
             $result = $cached;
         } else {
             $result = ktgs_run($checked);
-            if (empty($result['seo']['error']) || empty($result['geo']['error'])) {
+            if (empty($result['seo']['error']) || empty($result['geo']['error']) || empty($result['aeo']['error'])) {
                 ktgs_save($key, $result);
             }
         }
@@ -190,7 +212,7 @@ $self = ktgs_self();
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= ktgs_h(KTGS_TITLE) ?>｜SEO・AEO・GEO診断</title>
-<?php $ktgs_desc = 'URLを1回入れるだけで、Google検索向けのSEOと、AI検索向けのAEO・GEOをまとめて診断。生成AIを使わない決まったチェックで、直すことを効果の大きい順に出します。AIクローラーの実測もできます。'; ?>
+<?php $ktgs_desc = 'URLを1回入れるだけで、Google検索のSEO、AIの回答に引用されるAEO、AI検索に読まれるGEOをまとめて診断。生成AIを使わない決まったチェックで、直すことを順に出します。'; ?>
 <meta name="description" content="<?= ktgs_h($ktgs_desc) ?>">
 <?php if (KTGS_CANONICAL !== ''): ?>
 <link rel="canonical" href="<?= ktgs_h(KTGS_CANONICAL) ?>">
@@ -205,7 +227,7 @@ $self = ktgs_self();
 <script type="application/ld+json"><?= json_encode(['@context' => 'https://schema.org', '@graph' => [
   ['@type' => 'WebSite', 'name' => KTGS_TITLE, 'url' => KTGS_CANONICAL, 'potentialAction' => ['@type' => 'SearchAction', 'target' => KTGS_CANONICAL . '?url={url}', 'query-input' => 'required name=url']],
   ['@type' => 'FAQPage', 'mainEntity' => [
-    ['@type' => 'Question', 'name' => 'SEO・AEO・GEOの違いは？', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'SEOはGoogle検索の結果に出るための対策、AEOはAIの回答に答えとして引用されるための対策、GEOはChatGPTやPerplexityなどAI検索に読まれ、紹介されるための対策です。このシステムは3つをURLひとつで続けて診断します。']],
+    ['@type' => 'Question', 'name' => 'SEO・AEO・GEOの違いは？', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'SEOはGoogle検索の結果に出るための対策、AEOはAIの回答に答えとして引用されるための対策（結論が先か、定義の文、質問と短い答え、出典など）、GEOはChatGPTやPerplexityなどAI検索に読まれ紹介されるための対策（AIクローラーの許可、llms.txt、構造化データなど）です。このシステムは3つをURLひとつで続けて診断します。']],
     ['@type' => 'Question', 'name' => '診断に生成AIを使いますか？', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => '使いません。判定はすべて実測値にもとづく決まったチェックなので、同じページなら何度測っても同じ結果になります。']],
     ['@type' => 'Question', 'name' => 'AIのクローラーが来ているかも分かりますか？', 'acceptedAnswer' => ['@type' => 'Answer', 'text' => '同じシステムの計測（ktrackgeo.php）をサイトに入れると、GPTBot・ClaudeBot・PerplexityBotなどの訪問を記録できます。Google Analyticsはボットを除くので、ここは見えません。']],
   ]],
@@ -236,7 +258,7 @@ form.q button{background:var(--teal);color:#fff;border:0;border-radius:999px;pad
 .sc .v{font-size:40px;font-weight:900;line-height:1.2}
 .sc .v small{font-size:16px;color:var(--muted)}
 .sc .b{font-size:13px;font-weight:800}
-.sc.seo .v{color:var(--teal-d)} .sc.geo .v{color:var(--blue-d)} .sc.trk .v{color:var(--gold);font-size:22px;padding:12px 0}
+.sc.seo .v{color:var(--teal-d)} .sc.aeo .v{color:#7a3fa8} .sc.geo .v{color:var(--blue-d)}
 h2{font-size:21px;margin:30px 0 8px}
 .cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .cat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13.5px;display:flex;justify-content:space-between;gap:8px}
@@ -271,7 +293,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
   <form class="q" method="post"><input type="password" name="password" placeholder="パスワード" required><button type="submit">開く</button></form>
 <?php else: ?>
   <h1>URLひとつで、SEO・AEO・GEOをまとめて診断</h1>
-  <p class="lead">Google検索向けのSEOと、AI検索（ChatGPT・Perplexity・Google AI Overviewsなど）に引用されるためのAEO・GEOを、続けて診断します。判定に生成AIは使わないので、同じページなら何度測っても同じ結果になります。</p>
+  <p class="lead">Google検索に出るための<b>SEO</b>、AIの回答に答えとして引用されるための<b>AEO</b>、ChatGPT・Perplexity・Google AI OverviewsなどのAI検索に読まれ紹介されるための<b>GEO</b>を、続けて診断します。判定に生成AIは使わないので、同じページなら何度測っても同じ結果になります。</p>
   <form class="q" method="get" action="<?= ktgs_h($self) ?>">
     <input type="text" name="url" inputmode="url" placeholder="https://example.co.jp/" value="<?= ktgs_h($url_in) ?>" required>
     <button type="submit">診断する</button>
@@ -279,7 +301,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
   <p class="note">SEOはトップから最大<?= (int)KTGS_SEO_PAGES ?>ページを巡ります。1分ほどかかることがあります。同じURLの結果は<?= (int)KTGS_CACHE_HOURS ?>時間使い回します。</p>
   <?php if ($error !== ''): ?><div class="err"><?= ktgs_h($error) ?></div><?php endif; ?>
 
-  <?php if ($result): $seo = $result['seo']; $geo = $result['geo']; ?>
+  <?php if ($result): $seo = $result['seo']; $geo = $result['geo']; $aeo = $result['aeo'] ?? null; ?>
     <p class="note">対象：<a href="<?= ktgs_h($result['url']) ?>" rel="nofollow noopener" target="_blank"><?= ktgs_h($result['url']) ?></a>　診断：<?= ktgs_h(date('Y年n月j日 H:i', (int)$result['checked_at'])) ?></p>
     <div class="scores">
       <div class="sc seo"><div class="k">SEO（Google検索）</div>
@@ -287,13 +309,15 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
           <div class="v"><?= $s ?><small> / 100</small></div><div class="b"><?= ktgs_h(ktgs_band_label($s)) ?></div>
         <?php else: ?><div class="b">診断できませんでした</div><?php endif; ?>
       </div>
-      <div class="sc geo"><div class="k">AEO・GEO（AI検索）</div>
+      <div class="sc aeo"><div class="k">AEO（AIの回答）</div>
+        <?php if (!empty($aeo) && empty($aeo['error'])): $a = (int)$aeo['score']; ?>
+          <div class="v"><?= $a ?><small> / 100</small></div><div class="b"><?= ktgs_h(ktgs_band_label($a)) ?></div>
+        <?php else: ?><div class="b">診断できませんでした</div><?php endif; ?>
+      </div>
+      <div class="sc geo"><div class="k">GEO（AI検索）</div>
         <?php if (empty($geo['error'])): $g = (int)$geo['score']; ?>
           <div class="v"><?= $g ?><small> / 100</small></div><div class="b"><?= ktgs_h(ktgs_band_label($g)) ?></div>
         <?php else: ?><div class="b">診断できませんでした</div><?php endif; ?>
-      </div>
-      <div class="sc trk"><div class="k">AIクローラーの実測</div>
-        <div class="v">計測を入れると<br>記録できます</div><div class="b"><a href="ktrackgeo.php?dashboard=1">計測の画面を見る →</a></div>
       </div>
     </div>
 
@@ -313,17 +337,30 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
       <?php if (count($seo['findings']) > 10): ?><p class="note">ほかに<?= count($seo['findings']) - 10 ?>件あります。すべては診断書（Markdown）に入っています。</p><?php endif; ?>
     <?php else: ?><div class="err">SEO：<?= ktgs_h($seo['error']) ?></div><?php endif; ?>
 
+    <?php if (!empty($aeo) && empty($aeo['error'])): ?>
+      <h2>AEO（AIの回答への引用されやすさ）の観点</h2>
+      <div class="cats">
+        <?php foreach (ktgs_aeo_metric_labels() as $k => $label): ?><div class="cat"><span><?= ktgs_h($label) ?></span><b><?= (int)$aeo['metrics'][$k]['score'] ?></b></div><?php endforeach; ?>
+      </div>
+      <h2>AEO：直すこと</h2>
+      <div class="list">
+        <?php foreach ($aeo['recommendations'] as $x): ?><div class="item"><div class="t"><?= ktgs_h($x) ?></div></div><?php endforeach; ?>
+        <?php if (!$aeo['recommendations']): ?><div class="item">大きな問題は見つかりませんでした。</div><?php endif; ?>
+      </div>
+      <p class="note"><?= ktgs_h($aeo['analyzed_as'] === 'en' ? '英語のページとして判定しました。' : '日本語のページとして判定しました。') ?>外部のAI検索での掲載順位ではなく、引用されやすい書き方になっているかの準備度です。</p>
+    <?php elseif (!empty($aeo['error'])): ?><div class="err">AEO：<?= ktgs_h($aeo['error']) ?></div><?php endif; ?>
+
     <?php if (empty($geo['error'])): ?>
-      <h2>AEO・GEO（AI検索）の観点</h2>
+      <h2>GEO（AI検索に読まれるか）の観点</h2>
       <div class="cats">
         <?php foreach (ktg_geo_categories() as $k => $label): ?><div class="cat"><span><?= ktgs_h($label) ?></span><b><?= (int)($geo['categories'][$k] ?? 0) ?></b></div><?php endforeach; ?>
       </div>
-      <h2>AEO・GEO：直すこと（効果の大きい順）</h2>
+      <h2>GEO：直すこと（効果の大きい順）</h2>
       <div class="list">
         <?php foreach ($geo['recommendations'] as $a): ?><div class="item"><div class="t"><?= ktgs_h($a) ?></div></div><?php endforeach; ?>
         <?php if (!$geo['recommendations']): ?><div class="item">大きな問題は見つかりませんでした。</div><?php endif; ?>
       </div>
-    <?php else: ?><div class="err">AEO・GEO：<?= ktgs_h($geo['error']) ?></div><?php endif; ?>
+    <?php else: ?><div class="err">GEO：<?= ktgs_h($geo['error']) ?></div><?php endif; ?>
 
     <h2>AIのクローラーは、実際に来ているか</h2>
     <div class="box">この診断は「AIに読める状態か」を見るものです。GPTBot・ClaudeBot・PerplexityBot などが実際に読みに来たかは、計測（ktrackgeo.php）をサイトに入れると記録できます。Google Analytics はボットを除くので、ここは見えません。</div>

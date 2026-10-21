@@ -12,7 +12,8 @@ ktrackgeoseo.php          入口（URLを入れて診断する画面）
 kseo.php                  SEO診断（単独の画面としても使えます）
 ktrackgeo.php             計測（人とAIクローラーの訪問を記録）
 ktrackgeo_dashboard.php   計測の画面
-ktrackgeo_geo.php         AEO・GEO診断
+ktrackgeoseo_aeo.php      AEO診断
+ktrackgeo_geo.php         GEO診断
 kseo_data/.htaccess       ← 忘れると診断結果が外から読めます
 ktg_data/.htaccess        ← 忘れるとログが外から読めます
 ktgs_data/.htaccess       ← 忘れると診断結果が外から読めます
@@ -42,7 +43,7 @@ php scripts/make_password_hash.php 'パスワード'
 
 ## 4. 確認
 
-1. `https://（サイト）/ktrackgeoseo.php` を開き、自社のURLを入れて「診断する」→ SEOとAEO・GEOの点が出る
+1. `https://（サイト）/ktrackgeoseo.php` を開き、自社のURLを入れて「診断する」→ SEO・AEO・GEOの3つの点が出る
 2. 「診断書（Markdown）をダウンロード」でファイルが保存される
 3. `https://（サイト）/ktrackgeo.php?dashboard=1` が開く
 4. `https://（サイト）/kseo_data/`・`/ktg_data/`・`/ktgs_data/` が **403 か 404**（中身が見えたら手順1をやり直す）
