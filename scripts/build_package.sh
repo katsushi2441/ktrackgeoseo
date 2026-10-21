@@ -11,6 +11,7 @@ for f in ktrackgeoseo.php ktrackgeoseo_aeo.php kseo.php ktrackgeo.php ktrackgeo_
   cp "public/$f" "$OUT/public/$f"
 done
 for d in kseo_data ktg_data ktgs_data; do cp "public/$d/.htaccess" "$OUT/public/$d/.htaccess"; done
+mkdir -p "$OUT/public/ktgs_assets" && cp public/ktgs_assets/* "$OUT/public/ktgs_assets/"
 cp scripts/make_password_hash.php "$OUT/scripts/"
 cp -r skills/* "$OUT/skills/"
 cp AGENTS.md CLAUDE.md INSTALL.md SUPPORT.md README.md LICENSE "$OUT/"

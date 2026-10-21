@@ -171,9 +171,137 @@ function ktgs_markdown(array $r): string
     return implode("\n", $out);
 }
 
+// --- 結果ページとカード画像（Xに貼るため）
+/** このシステムの公開URL（og:image などに絶対URLが要る）。 */
+function ktgs_base_url(): string
+{
+    if (KTGS_CANONICAL !== '') { return KTGS_CANONICAL; }
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    return ($https ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . (string)($_SERVER['SCRIPT_NAME'] ?? '/ktrackgeoseo.php');
+}
+/** [SEO, AEO, GEO] の点。診断できなかったものは null。 */
+function ktgs_scores(array $r): array
+{
+    return [
+        empty($r['seo']['error']) && isset($r['seo']['score']['overall']) ? (int)$r['seo']['score']['overall'] : null,
+        !empty($r['aeo']) && empty($r['aeo']['error']) ? (int)$r['aeo']['score'] : null,
+        empty($r['geo']['error']) && isset($r['geo']['score']) ? (int)$r['geo']['score'] : null,
+    ];
+}
+function ktgs_host(array $r): string
+{
+    $h = (string)parse_url((string)$r['url'], PHP_URL_HOST);
+    return preg_replace('/^www\./i', '', $h);
+}
+function ktgs_all_good(array $r): bool
+{
+    foreach (ktgs_scores($r) as $v) { if ($v === null || $v < 80) { return false; } }
+    return true;
+}
+/** Xに貼る文（URLは別に付ける）。 */
+function ktgs_share_text(array $r): string
+{
+    [$s, $a, $g] = ktgs_scores($r);
+    $f = fn($v) => $v === null ? '-' : (string)$v;
+    $host = ktgs_host($r);
+    $head = ktgs_all_good($r) ? $host . ' は、SEO・AEO・GEO の3つとも80点以上でした' : $host . ' を、SEO・AEO・GEO で診断しました';
+    return $head . "\nSEO " . $f($s) . ' ／ AEO ' . $f($a) . ' ／ GEO ' . $f($g) . "\n#SEO #AEO #GEO";
+}
+/** 結果カード（1200×630のPNG）。文字は ktgs_assets/ の切り出しフォント（scripts/make_card_fonts.py）。 */
+function ktgs_card_png(array $r): string
+{
+    $W = 1200; $H = 630;
+    $im = imagecreatetruecolor($W, $H);
+    imagealphablending($im, true);
+    $c = fn($hex) => imagecolorallocate($im, hexdec(substr($hex, 1, 2)), hexdec(substr($hex, 3, 2)), hexdec(substr($hex, 5, 2)));
+    $paper = $c('#f3faf9'); $ink = $c('#1d3038'); $muted = $c('#5f7078'); $line = $c('#dcebe9'); $white = $c('#ffffff');
+    $tealD = $c('#076f67'); $purple = $c('#7a3fa8'); $blueD = $c('#1f5fa8'); $gold = $c('#8a5a00'); $goldBg = $c('#fff4d6'); $goldLine = $c('#e3b440');
+    imagefilledrectangle($im, 0, 0, $W, $H, $paper);
+    for ($x = 0; $x < $W; $x++) {   // 上の帯（青緑→青）
+        $t = $x / $W;
+        $col = imagecolorallocate($im, (int)(10 + (47 - 10) * $t), (int)(154 + (127 - 154) * $t), (int)(143 + (212 - 143) * $t));
+        imageline($im, $x, 0, $x, 9, $col);
+    }
+    $B = __DIR__ . '/ktgs_assets/ktgs-card-bold.otf';
+    $K = __DIR__ . '/ktgs_assets/ktgs-card-black.otf';
+    $text = function ($size, $x, $y, $col, $font, $str, $align = 'l') use ($im) {
+        $bb = imagettfbbox($size, 0, $font, $str);
+        $w = $bb[2] - $bb[0];
+        if ($align === 'c') { $x -= (int)($w / 2); } elseif ($align === 'r') { $x -= $w; }
+        imagettftext($im, $size, 0, (int)$x, (int)$y, $col, $font, $str);
+        return $w;
+    };
+    $round = function ($x1, $y1, $x2, $y2, $rad, $fill, $border = null) use ($im) {
+        foreach ([[$border, 0], [$fill, $border !== null ? 2 : 0]] as [$col, $in]) {
+            if ($col === null) { continue; }
+            $a = $x1 + $in; $b = $y1 + $in; $c2 = $x2 - $in; $d = $y2 - $in; $r = max(1, $rad - $in);
+            imagefilledrectangle($im, $a + $r, $b, $c2 - $r, $d, $col);
+            imagefilledrectangle($im, $a, $b + $r, $c2, $d - $r, $col);
+            foreach ([[$a + $r, $b + $r], [$c2 - $r, $b + $r], [$a + $r, $d - $r], [$c2 - $r, $d - $r]] as [$cx, $cy]) {
+                imagefilledellipse($im, $cx, $cy, $r * 2, $r * 2, $col);
+            }
+        }
+    };
+    $text(26, 64, 74, $tealD, $B, 'SEO・AEO・GEO 診断結果');
+    if (ktgs_all_good($r)) {   // 3つとも80点以上の札
+        $label = '3つとも80点以上';
+        $bb = imagettfbbox(24, 0, $B, $label); $w = $bb[2] - $bb[0];
+        $round($W - 64 - $w - 44, 40, $W - 64, 94, 27, $goldBg, $goldLine);
+        $text(24, $W - 64 - 22, 77, $gold, $B, $label, 'r');
+    }
+    $host = ktgs_host($r);   // ドメイン名は入る大きさまで縮める
+    for ($size = 60; $size > 24; $size -= 2) {
+        $bb = imagettfbbox($size, 0, $K, $host);
+        if ($bb[2] - $bb[0] <= 1072) { break; }
+    }
+    $text($size, 64, 168, $ink, $K, $host);
+    $boxes = [['SEO', 'Google検索', $tealD], ['AEO', 'AIの回答', $purple], ['GEO', 'AI検索', $blueD]];
+    $scores = ktgs_scores($r);
+    foreach ($boxes as $i => [$lab, $sub, $col]) {
+        $x = 64 + $i * 300; $y = 214;
+        $round($x, $y, $x + 276, $y + 300, 22, $white, $line);
+        $cx = $x + 138;
+        $text(30, $cx, $y + 58, $col, $K, $lab, 'c');
+        $text(18, $cx, $y + 92, $muted, $B, $sub, 'c');
+        $v = $scores[$i];
+        $text(88, $cx, $y + 212, $col, $K, $v === null ? '-' : (string)$v, 'c');
+        $text(18, $cx, $y + 248, $muted, $B, '/ 100', 'c');
+        if ($v !== null) { $text(20, $cx, $y + 282, $ink, $B, ktgs_band_label($v), 'c'); }
+    }
+    $mascot = __DIR__ . '/ktgs_assets/mascot.png';
+    if (is_file($mascot) && ($m = @imagecreatefrompng($mascot))) {
+        imagecopy($im, $m, $W - imagesx($m) - 24, $H - imagesy($m) - 14, 0, 0, imagesx($m), imagesy($m));
+    }
+    $text(18, 64, 586, $muted, $B, 'Kurage Track & GEO & SEO で診断・' . date('Y年n月j日', (int)$r['checked_at']));
+    ob_start(); imagepng($im, null, 6); imagedestroy($im);
+    return (string)ob_get_clean();
+}
+
 // --- 受け付け
 $error = '';
 $result = null;
+// --- カード画像（?og=キー）と結果ページ（?r=キー）
+$share = false;
+if (isset($_GET['og'])) {
+    $key = preg_replace('/[^0-9a-f]/', '', (string)$_GET['og']);
+    $r = $key !== '' ? ktgs_load($key) : null;
+    if (!$r || !function_exists('imagettftext')) { http_response_code(404); exit; }
+    $png = ktgs_dir() . '/og-' . $key . '-' . (int)$r['checked_at'] . '.png';
+    if (!is_file($png)) {
+        foreach (glob(ktgs_dir() . '/og-' . $key . '-*.png') ?: [] as $old) { @unlink($old); }
+        file_put_contents($png, ktgs_card_png($r));
+    }
+    header('Content-Type: image/png');
+    header('Cache-Control: public, max-age=86400');
+    readfile($png);
+    exit;
+}
+if (isset($_GET['r'])) {
+    $key = preg_replace('/[^0-9a-f]/', '', (string)$_GET['r']);
+    $result = $key !== '' ? ktgs_load($key) : null;
+    if ($result) { $share = true; } else { http_response_code(404); $error = 'この診断結果は見つかりませんでした。もう一度診断してください。'; }
+}
+
 $url_in = trim((string)($_GET['url'] ?? $_POST['url'] ?? ''));
 if ($authed && $url_in !== '') {
     [$ok, $checked] = kseo_validate_url($url_in);
@@ -211,10 +339,28 @@ $self = ktgs_self();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<?php if ($share): [$ss, $sa, $sg] = ktgs_scores($result); $sh = ktgs_host($result); $f = fn($v) => $v === null ? '-' : $v;
+  $st = $sh . 'の診断結果｜SEO ' . $f($ss) . '・AEO ' . $f($sa) . '・GEO ' . $f($sg);
+  $sd = $sh . ' を、Google検索のSEO、AIの回答に引用されるAEO、AI検索に読まれるGEOで診断した結果です（' . date('Y年n月j日', (int)$result['checked_at']) . '）。あなたのサイトもURLを入れるだけで診断できます。';
+  $su = ktgs_base_url() . '?r=' . ktgs_key($result['url']); $si = ktgs_base_url() . '?og=' . ktgs_key($result['url']) . '&v=' . (int)$result['checked_at']; ?>
+<title><?= ktgs_h($st) ?></title>
+<meta name="description" content="<?= ktgs_h($sd) ?>">
+<meta name="robots" content="noindex,follow">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="<?= ktgs_h(KTGS_TITLE) ?>">
+<meta property="og:title" content="<?= ktgs_h($st) ?>">
+<meta property="og:description" content="<?= ktgs_h($sd) ?>">
+<meta property="og:url" content="<?= ktgs_h($su) ?>">
+<meta property="og:image" content="<?= ktgs_h($si) ?>"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="<?= ktgs_h($si) ?>">
+<?php else: ?>
 <title><?= ktgs_h(KTGS_TITLE) ?>｜SEO・AEO・GEO診断</title>
 <?php $ktgs_desc = 'URLを1回入れるだけで、Google検索のSEO、AIの回答に引用されるAEO、AI検索に読まれるGEOをまとめて診断。生成AIを使わない決まったチェックで、直すことを順に出します。'; ?>
 <meta name="description" content="<?= ktgs_h($ktgs_desc) ?>">
-<?php if (KTGS_CANONICAL !== ''): ?>
+<?php endif; ?>
+<?php if (!$share && KTGS_CANONICAL !== ''): ?>
 <link rel="canonical" href="<?= ktgs_h(KTGS_CANONICAL) ?>">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="<?= ktgs_h(KTGS_TITLE) ?>">
@@ -274,6 +420,14 @@ h2{font-size:21px;margin:30px 0 8px}
 .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--teal);background:#fff;color:var(--teal-d);border-radius:999px;padding:9px 18px;font-weight:900;text-decoration:none;font-size:14px;cursor:pointer;font-family:inherit}
 .btn.main{background:var(--teal);color:#fff}
 .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+
+.share{background:#fff;border:2px solid var(--teal);border-radius:16px;padding:16px;margin:22px 0}
+.share h2{margin:0 0 10px;font-size:19px}
+.share img{display:block;width:100%;max-width:600px;height:auto;border-radius:12px;border:1px solid var(--line)}
+.share pre{white-space:pre-wrap;word-break:break-all;font-family:inherit;font-size:14px;background:var(--paper);border-radius:10px;padding:10px 12px;margin:12px 0}
+.share .bt{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.share .xb{background:#111;border-color:#111;color:#fff}
+.share .ok{font-size:13px;color:var(--teal-d);font-weight:800}
 footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted);background:#fff}
 @media(max-width:640px){.scores{grid-template-columns:1fr}}
 @media print{header nav,form.q,.actions,.demo{display:none}body{background:#fff}.sc,.list,.cat,.box{break-inside:avoid}}
@@ -292,7 +446,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
   <h1>ログイン</h1>
   <form class="q" method="post"><input type="password" name="password" placeholder="パスワード" required><button type="submit">開く</button></form>
 <?php else: ?>
-  <h1>URLひとつで、SEO・AEO・GEOをまとめて診断</h1>
+  <h1><?= $share ? ktgs_h(ktgs_host($result)) . ' のSEO・AEO・GEO診断結果' : 'URLひとつで、SEO・AEO・GEOをまとめて診断' ?></h1>
   <p class="lead">Google検索に出るための<b>SEO</b>、AIの回答に答えとして引用されるための<b>AEO</b>、ChatGPT・Perplexity・Google AI OverviewsなどのAI検索に読まれ紹介されるための<b>GEO</b>を、続けて診断します。判定に生成AIは使わないので、同じページなら何度測っても同じ結果になります。</p>
   <form class="q" method="get" action="<?= ktgs_h($self) ?>">
     <input type="text" name="url" inputmode="url" placeholder="https://example.co.jp/" value="<?= ktgs_h($url_in) ?>" required>
@@ -320,6 +474,30 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
         <?php else: ?><div class="b">診断できませんでした</div><?php endif; ?>
       </div>
     </div>
+
+    <?php $rk = ktgs_key($result['url']); $rurl = ktgs_base_url() . '?r=' . $rk; $stext = ktgs_share_text($result); ?>
+    <div class="share" id="share">
+      <h2><?= ktgs_all_good($result) ? '3つとも80点以上です。この結果をXで紹介しませんか' : 'この結果を共有する' ?></h2>
+      <img src="<?= ktgs_h(ktgs_base_url() . '?og=' . $rk . '&v=' . (int)$result['checked_at']) ?>" alt="<?= ktgs_h(ktgs_host($result)) ?>のSEO・AEO・GEO診断結果のカード" width="1200" height="630" loading="lazy">
+      <pre class="stext"><?= ktgs_h($stext . "
+" . $rurl) ?></pre>
+      <div class="bt">
+        <a class="btn xb" target="_blank" rel="noopener" href="https://x.com/intent/post?<?= ktgs_h(http_build_query(['text' => $stext, 'url' => $rurl . '#ref=x-share-ktgs'])) ?>">𝕏 Xに投稿</a>
+        <button class="btn cp" type="button" data-copy="<?= ktgs_h($stext . "
+" . $rurl . '#ref=copy-ktgs') ?>">投稿文をコピー</button>
+        <a class="btn" href="<?= ktgs_h($rurl) ?>">結果のページ</a>
+        <span class="ok" hidden>コピーしました</span>
+      </div>
+      <p class="note">Xに貼ると、このカードの画像が表示されます。結果のページは検索エンジンには出しません。</p>
+    </div>
+    <script>
+    document.querySelectorAll('.share .cp').forEach(function(b){b.addEventListener('click',function(){
+      var t=b.getAttribute('data-copy'),ok=b.parentNode.querySelector('.ok');
+      function done(){ok.hidden=false;setTimeout(function(){ok.hidden=true},2000)}
+      function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');done()}catch(e){}document.body.removeChild(a)}
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,fb)}else{fb()}
+    })});
+    </script>
 
     <?php if (empty($seo['error'])): ?>
       <h2>SEO（Google検索）のカテゴリ</h2>

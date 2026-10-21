@@ -10,7 +10,7 @@ for ln in open('/home/kojima/work/aixec/.env', encoding='utf-8'):
         k, v = ln.split('=', 1); os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 f = ftplib.FTP(os.environ['FTP_HOST'], timeout=120); f.login(os.environ['FTP_USER'], os.environ['FTP_PASS'])
 root = '/web/proto_exbridge_jp/ktrackgeoseo'
-for d in (root, root + '/kseo_data', root + '/ktg_data', root + '/ktgs_data'):
+for d in (root, root + '/kseo_data', root + '/ktg_data', root + '/ktgs_data', root + '/ktgs_assets'):
     try: f.mkd(d)
     except ftplib.error_perm: pass
 files = {f'public/{n}': n for n in ('ktrackgeoseo.php', 'ktrackgeoseo_aeo.php', 'kseo.php', 'ktrackgeo.php', 'ktrackgeo_dashboard.php', 'ktrackgeo_geo.php')}
@@ -18,7 +18,9 @@ files.update({'demo/ktrackgeoseo_config.php': 'ktrackgeoseo_config.php', 'demo/k
               'demo/ktrackgeo_config.php': 'ktrackgeo_config.php', 'demo/index.php': 'index.php', 'demo/.htaccess': '.htaccess',
               'demo/ktrackgeoseo-ogp.png': 'ktrackgeoseo-ogp.png', 'demo/llms.txt': 'llms.txt',
               'public/kseo_data/.htaccess': 'kseo_data/.htaccess', 'public/ktg_data/.htaccess': 'ktg_data/.htaccess',
-              'public/ktgs_data/.htaccess': 'ktgs_data/.htaccess'})
+              'public/ktgs_data/.htaccess': 'ktgs_data/.htaccess',
+              'public/ktgs_assets/ktgs-card-bold.otf': 'ktgs_assets/ktgs-card-bold.otf', 'public/ktgs_assets/ktgs-card-black.otf': 'ktgs_assets/ktgs-card-black.otf',
+              'public/ktgs_assets/mascot.png': 'ktgs_assets/mascot.png', 'public/ktgs_assets/OFL.txt': 'ktgs_assets/OFL.txt'})
 for src, dst in files.items():
     f.storbinary(f'STOR {root}/{dst}', open(src, 'rb')); print('deployed:', dst)
 f.quit()
