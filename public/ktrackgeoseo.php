@@ -206,7 +206,8 @@ function ktgs_share_text(array $r): string
     // ドメイン名の「.」は全角にする。半角のままだと X が自動でリンクにし、そのサイトのOGPが出てしまう
     $host = str_replace('.', '．', ktgs_host($r));
     $head = ktgs_all_good($r) ? $host . ' は、SEO・AEO・GEO の3つとも80点以上でした' : $host . ' を、SEO・AEO・GEO で診断しました';
-    return '【' . KTGS_TITLE . "】\n" . $head . "\nSEO " . $f($s) . ' ／ AEO ' . $f($a) . ' ／ GEO ' . $f($g) . "\n#SEO #AEO #GEO";
+    return '【' . KTGS_TITLE . "】\n" . $head . "\nSEO " . $f($s) . ' ／ AEO ' . $f($a) . ' ／ GEO ' . $f($g)
+        . "\nGoogle検索にもAI検索にも強いか、URLを入れるだけで診断できます\n#SEO #AEO #GEO";
 }
 /** 結果カード（1200×630のPNG）。文字は ktgs_assets/ の切り出しフォント（scripts/make_card_fonts.py）。 */
 function ktgs_card_png(array $r): string
@@ -430,6 +431,9 @@ h2{font-size:21px;margin:30px 0 8px}
 .share .xb{background:#111;border-color:#111;color:#fff}
 .share .ok{font-size:13px;color:var(--teal-d);font-weight:800}
 
+.cta-diag{background:linear-gradient(135deg,#e6f6f3,#eaf2fc);border:2px solid var(--teal);border-radius:18px;padding:18px 18px 8px;margin:22px 0}
+.cta-diag h2{margin:0 0 6px;font-size:21px;color:var(--teal-d)}
+.cta-diag p{margin:0 0 12px;font-size:14.5px;color:var(--ink)}
 .running{display:none;align-items:center;gap:12px;background:#fff;border:2px solid var(--teal);border-radius:14px;padding:14px 16px;margin:14px 0;font-weight:800;color:var(--teal-d)}
 .running.on{display:flex}
 .running .spin{width:26px;height:26px;border:4px solid #cfe9e6;border-top-color:var(--teal);border-radius:50%;animation:ktgs-spin .9s linear infinite;flex:none}
@@ -455,6 +459,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
   <form class="q" method="post"><input type="password" name="password" placeholder="パスワード" required><button type="submit">開く</button></form>
 <?php else: ?>
   <h1><?= $share ? ktgs_h(ktgs_host($result)) . ' のSEO・AEO・GEO診断結果' : 'URLひとつで、SEO・AEO・GEOをまとめて診断' ?></h1>
+<?php if (!$share): ?>
   <p class="lead">Google検索に出るための<b>SEO</b>、AIの回答に答えとして引用されるための<b>AEO</b>、ChatGPT・Perplexity・Google AI OverviewsなどのAI検索に読まれ紹介されるための<b>GEO</b>を、続けて診断します。判定に生成AIは使わないので、同じページなら何度測っても同じ結果になります。</p>
   <form class="q js-run" method="get" action="<?= ktgs_h($self) ?>">
     <input type="text" name="url" inputmode="url" placeholder="https://example.co.jp/" value="<?= ktgs_h($url_in) ?>" required>
@@ -462,6 +467,9 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
   </form>
   <div class="running" id="running" role="status" aria-live="polite"><span class="spin"></span><span>診断しています。そのままお待ちください<small id="running-sub">SEO・AEO・GEOを順に調べています。1分ほどかかることがあります（<span id="running-sec">0</span>秒）</small></span></div>
   <p class="note">SEOはトップから最大<?= (int)KTGS_SEO_PAGES ?>ページを巡ります。1分ほどかかることがあります。同じURLの結果は<?= (int)KTGS_CACHE_HOURS ?>時間使い回します。</p>
+<?php else: ?>
+  <p class="lead"><?= ktgs_h(ktgs_host($result)) ?> を、Google検索のSEO・AIの回答のAEO・AI検索のGEOで診断した結果です。</p>
+<?php endif; ?>
   <?php if ($error !== ''): ?><div class="err"><?= ktgs_h($error) ?></div><?php endif; ?>
 
   <?php if ($result): $seo = $result['seo']; $geo = $result['geo']; $aeo = $result['aeo'] ?? null; ?>
@@ -484,9 +492,22 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
       </div>
     </div>
 
+    <?php if ($share): ?>
+    <div class="cta-diag" id="diag">
+      <h2>あなたのサイトも、URLを入れるだけで診断できます</h2>
+      <p>Google検索のSEO、AIの回答に引用されるAEO、AI検索に読まれるGEOの3つを、続けて診断します。結果はこのページのように、Xに貼れるカードになります。</p>
+  <form class="q js-run" method="get" action="<?= ktgs_h($self) ?>">
+    <input type="text" name="url" inputmode="url" placeholder="例: https://example.co.jp/" value="" required>
+    <button type="submit">自分のサイトを診断する</button>
+  </form>
+  <div class="running" id="running" role="status" aria-live="polite"><span class="spin"></span><span>診断しています。そのままお待ちください<small id="running-sub">SEO・AEO・GEOを順に調べています。1分ほどかかることがあります（<span id="running-sec">0</span>秒）</small></span></div>
+  <p class="note">SEOはトップから最大<?= (int)KTGS_SEO_PAGES ?>ページを巡ります。1分ほどかかることがあります。同じURLの結果は<?= (int)KTGS_CACHE_HOURS ?>時間使い回します。</p>
+    </div>
+    <?php endif; ?>
+
     <?php $rk = ktgs_key($result['url']); $rurl = ktgs_base_url() . '?r=' . $rk; $stext = ktgs_share_text($result); ?>
     <div class="share" id="share">
-      <h2><?= ktgs_all_good($result) ? '3つとも80点以上です。この結果をXで紹介しませんか' : 'この結果を共有する' ?></h2>
+      <h2><?= ktgs_all_good($result) ? '3つとも80点以上です。この結果をXで紹介しませんか' : 'この結果を共有する' ?><?= $share ? '<small style="display:block;font-size:13px;color:#5f7078;font-weight:700">（このサイトの持ち主の方へ）</small>' : '' ?></h2>
       <img src="<?= ktgs_h(ktgs_base_url() . '?og=' . $rk . '&v=' . (int)$result['checked_at']) ?>" alt="<?= ktgs_h(ktgs_host($result)) ?>のSEO・AEO・GEO診断結果のカード" width="1200" height="630" loading="lazy">
       <pre class="stext"><?= ktgs_h($stext . "
 " . $rurl) ?></pre>
@@ -559,6 +580,9 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
     </div>
     <p class="note">判定はすべて実測値にもとづく決定論的なチェックで、生成AIは使っていません。</p>
   <?php endif; ?>
+<?php endif; ?>
+<?php if ($share && $result): ?>
+  <div class="cta-diag" style="text-align:center"><h2>あなたのサイトは何点？</h2><a class="btn main" href="#diag" style="font-size:16px;padding:12px 26px">自分のサイトを診断する</a></div>
 <?php endif; ?>
 <?= KTGS_DEMO_FOOTER ?>
 </main>
