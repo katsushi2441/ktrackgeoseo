@@ -529,6 +529,8 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
     })});
     </script>
 
+    <?php if (function_exists('ktgs_demo_after_share')) { echo ktgs_demo_after_share($result, $share); } // 設定ファイルで足す案内（無ければ何も出ない） ?>
+
     <?php if (empty($seo['error'])): ?>
       <h2>SEO（Google検索）のカテゴリ</h2>
       <div class="cats">
