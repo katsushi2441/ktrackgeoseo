@@ -1,3 +1,13 @@
 AddHandler php8.3-script .php
 AddDefaultCharset UTF-8
 DirectoryIndex index.php
+# デモ版は点数だけを見せる。SEO単体の画面（直すこと・診断書つき）を直接開かせない（ktrackgeoseo.php からの読み込みは影響なし）
+<Files "kseo.php">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</Files>

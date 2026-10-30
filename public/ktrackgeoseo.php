@@ -25,6 +25,7 @@ if (!defined('KTGS_CACHE_HOURS'))   { define('KTGS_CACHE_HOURS', 24); }     // �
 if (!defined('KTGS_RATE_PER_HOUR')) { define('KTGS_RATE_PER_HOUR', 20); }   // 1つのIPから1時間に新しく診断できる回数（0で無制限）
 if (!defined('KTGS_DATA_DIR'))      { define('KTGS_DATA_DIR', __DIR__ . '/ktgs_data'); }
 if (!defined('KTGS_DEMO_FOOTER'))   { define('KTGS_DEMO_FOOTER', ''); }     // デモだけで出す案内（HTML）
+if (!defined('KTGS_LITE'))          { define('KTGS_LITE', false); }         // true で点数と観点ごとの点だけを出す（直すこと・診断書を出さない。デモ版用）
 if (!defined('KTGS_CANONICAL'))     { define('KTGS_CANONICAL', ''); }       // 公開URL（設定するとcanonical・OGPを出す）
 if (!defined('KTGS_OG_IMAGE'))      { define('KTGS_OG_IMAGE', ''); }        // OGP画像のURL（1200×630）
 
@@ -324,7 +325,7 @@ if ($authed && $url_in !== '') {
                 ktgs_save($key, $result);
             }
         }
-        if ($result && ($_GET['format'] ?? '') === 'md') {
+        if ($result && ($_GET['format'] ?? '') === 'md' && !KTGS_LITE) {
             $host = preg_replace('/[^a-z0-9.-]/i', '', (string)parse_url($result['url'], PHP_URL_HOST));
             header('Content-Type: text/markdown; charset=UTF-8');
             header('Content-Disposition: attachment; filename="ktrackgeoseo-' . $host . '-' . date('Ymd', (int)$result['checked_at']) . '.md"');
@@ -536,6 +537,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
       <div class="cats">
         <?php foreach ($seo['score']['categories'] as $c): ?><div class="cat"><span><?= ktgs_h($c['label']) ?></span><b><?= (int)$c['score'] ?></b></div><?php endforeach; ?>
       </div>
+      <?php if (!KTGS_LITE): ?>
       <h2>SEO：直すこと（重い順・上位10件）</h2>
       <div class="list">
         <?php $shown = 0; foreach ($seo['findings'] as $f): if ($shown++ >= 10) break; ?>
@@ -545,6 +547,7 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
         <?php endforeach; if (!$seo['findings']): ?><div class="item">大きな問題は見つかりませんでした。</div><?php endif; ?>
       </div>
       <?php if (count($seo['findings']) > 10): ?><p class="note">ほかに<?= count($seo['findings']) - 10 ?>件あります。すべては診断書（Markdown）に入っています。</p><?php endif; ?>
+      <?php endif; ?>
     <?php else: ?><div class="err">SEO：<?= ktgs_h($seo['error']) ?></div><?php endif; ?>
 
     <?php if (!empty($aeo) && empty($aeo['error'])): ?>
@@ -552,11 +555,13 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
       <div class="cats">
         <?php foreach (ktgs_aeo_metric_labels() as $k => $label): ?><div class="cat"><span><?= ktgs_h($label) ?></span><b><?= (int)$aeo['metrics'][$k]['score'] ?></b></div><?php endforeach; ?>
       </div>
+      <?php if (!KTGS_LITE): ?>
       <h2>AEO：直すこと</h2>
       <div class="list">
         <?php foreach ($aeo['recommendations'] as $x): ?><div class="item"><div class="t"><?= ktgs_h($x) ?></div></div><?php endforeach; ?>
         <?php if (!$aeo['recommendations']): ?><div class="item">大きな問題は見つかりませんでした。</div><?php endif; ?>
       </div>
+      <?php endif; ?>
       <p class="note"><?= ktgs_h($aeo['analyzed_as'] === 'en' ? '英語のページとして判定しました。' : '日本語のページとして判定しました。') ?>外部のAI検索での掲載順位ではなく、引用されやすい書き方になっているかの準備度です。</p>
     <?php elseif (!empty($aeo['error'])): ?><div class="err">AEO：<?= ktgs_h($aeo['error']) ?></div><?php endif; ?>
 
@@ -565,18 +570,24 @@ footer{margin-top:40px;padding:20px 0;border-top:1px solid var(--line);font-size
       <div class="cats">
         <?php foreach (ktg_geo_categories() as $k => $label): ?><div class="cat"><span><?= ktgs_h($label) ?></span><b><?= (int)($geo['categories'][$k] ?? 0) ?></b></div><?php endforeach; ?>
       </div>
+      <?php if (!KTGS_LITE): ?>
       <h2>GEO：直すこと（効果の大きい順）</h2>
       <div class="list">
         <?php foreach ($geo['recommendations'] as $a): ?><div class="item"><div class="t"><?= ktgs_h($a) ?></div></div><?php endforeach; ?>
         <?php if (!$geo['recommendations']): ?><div class="item">大きな問題は見つかりませんでした。</div><?php endif; ?>
       </div>
+      <?php endif; ?>
     <?php else: ?><div class="err">GEO：<?= ktgs_h($geo['error']) ?></div><?php endif; ?>
+
+    <?php if (KTGS_LITE): ?>
+    <div class="box"><b>デモ版のため、点数と観点ごとの点の概要だけを表示しています。</b>どこを直すか（SEO・AEO・GEOの項目ごとの実測と直し方）と診断書（Markdown）のダウンロードは、導入版でお使いいただけます。</div>
+    <?php endif; ?>
 
     <h2>AIのクローラーは、実際に来ているか</h2>
     <div class="box">この診断は「AIに読める状態か」を見るものです。GPTBot・ClaudeBot・PerplexityBot などが実際に読みに来たかは、計測（ktrackgeo.php）をサイトに入れると記録できます。Google Analytics はボットを除くので、ここは見えません。</div>
 
     <div class="actions">
-      <a class="btn main" href="<?= ktgs_h($self) ?>?url=<?= rawurlencode($result['url']) ?>&amp;format=md">診断書（Markdown）をダウンロード</a>
+      <?php if (!KTGS_LITE): ?><a class="btn main" href="<?= ktgs_h($self) ?>?url=<?= rawurlencode($result['url']) ?>&amp;format=md">診断書（Markdown）をダウンロード</a><?php endif; ?>
       <button class="btn" type="button" onclick="window.print()">印刷・PDFで保存</button>
       <form class="js-run" method="post" action="<?= ktgs_h($self) ?>?url=<?= rawurlencode($result['url']) ?>" style="display:inline"><input type="hidden" name="again" value="1"><button class="btn" type="submit">いま測り直す</button></form>
     </div>

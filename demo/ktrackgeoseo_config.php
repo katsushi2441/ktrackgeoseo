@@ -4,6 +4,7 @@ define('KTGS_TITLE', 'Kurage Track & GEO & SEO');
 define('KTGS_PASSWORD_HASH', '');          // デモは鍵なし
 define('KTGS_SEO_PAGES', 5);
 define('KTGS_CACHE_HOURS', 24);
+define('KTGS_LITE', true);                // デモ版は点数と観点ごとの点だけ（直すこと・診断書は出さない。2026-10-30 ユーザー指示）
 define('KTGS_RATE_PER_HOUR', 10);          // デモは1つのIPから1時間に10回まで
 define('KTGS_CANONICAL', 'https://proto.exbridge.jp/ktrackgeoseo/ktrackgeoseo.php');
 define('KTGS_OG_IMAGE', 'https://proto.exbridge.jp/ktrackgeoseo/ktrackgeoseo-ogp.png');
@@ -45,7 +46,7 @@ function ktgs_demo_after_share(array $r, bool $share): string
   } elseif ($total > 0) {
     $h = 'この' . $total . '件の直し、AI-SNS顧問の15時間でやります';
     $lead = $e($host) . ' で、直したほうがいいことが <b>SEO ' . $nseo . '件・AEO ' . $naeo . '件・GEO ' . $ngeo . '件</b> 見つかりました。'
-      . '下の「直すこと」を、AI-SNS顧問の月15時間の中で、AIを使って直します。直したらこの診断で測り直し、点数で確かめます。';
+      . 'どこを直すかをお伝えし、AI-SNS顧問の月15時間の中で、AIを使って直します。直したらこの診断で測り直し、点数で確かめます。';
   } else {
     $h = 'サイトは整っています。次は、Xから人を呼ぶ番です';
     $lead = $e($host) . ' は、検索にもAIにも読まれる準備ができています。AI-SNS顧問では、Xで信用のある人とつながり、このサイトに人を呼んで、問い合わせ・採用・PRにつなげます。';
