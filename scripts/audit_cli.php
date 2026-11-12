@@ -18,4 +18,4 @@ $html = (string)@file_get_contents($url, false, $ctx);
 file_put_contents($out . '/top.html', $html);
 $aeo = $html !== '' ? ktgs_aeo_analyze($html) : ['error' => 'トップページを取得できませんでした'];
 file_put_contents($out . '/result.json', json_encode(['url' => $url, 'checked_at' => date('c'), 'seo' => $seo, 'aeo' => $aeo, 'geo' => $geo], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-printf("SEO %s / AEO %s / GEO %s → %s/result.json\n", (is_array($seo["score"] ?? null) ? ($seo["score"]["total"] ?? json_encode($seo["score"])) : ($seo["score"] ?? "-")), $aeo['score'] ?? '-', $geo['score'] ?? '-', $out);
+printf("SEO %s / AEO %s / GEO %s → %s/result.json\n", (is_array($seo["score"] ?? null) ? ($seo["score"]["overall"] ?? "-") : ($seo["score"] ?? "-")), $aeo['score'] ?? '-', $geo['score'] ?? '-', $out);
